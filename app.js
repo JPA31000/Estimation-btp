@@ -96,129 +96,9 @@ function normalizeState(s, ref){
   }
   return out;
 }
-const DEFAULT_REF = {
-  typologies: {
-    "Logement collectif": 1800,
-    "Tertiaire": 1600,
-    "Scolaire": 1500,
-    "Maison individuelle": 1400,
-    "Industriel": 1100
-  },
-  reglementation: { "RT2012": 0.10, "RE2020": 0.20 },
-  typeConstructif: {
-    "Trad béton": 0.00,
-    "Préfa béton": 0.05,
-    "Structure métal": 0.10,
-    "Construction bois": 0.15,
-    "Passif": 0.30
-  },
-  contrainteSol: {
-    "Standard": 0.00,
-    "Sol médiocre (fondations profondes)": 0.10,
-    "Présence d'eau / drainage": 0.15
-  },
-  contrainteTerrain: {
-    "Plat": 0.00,
-    "Pente modérée": 0.05,
-    "Pente forte": 0.10
-  },
-  chauffage: {
-    "Électrique radiateurs": 50,
-    "Chaudière gaz": 100,
-    "Plancher chauffant hydraulique": 80,
-    "PAC air/eau": 120,
-    "Géothermie": 200,
-    "Chaudière granulés": 150
-  },
-  ventilation: {
-    "VMC simple flux": 20,
-    "VMC double flux": 50,
-    "Double flux thermodynamique": 80,
-    "CTA simple (tertiaire)": 100,
-    "CTA avec récupération": 150
-  },
-  lotsPresets: {
-    "Logement collectif": {
-      "Terrassements & fondations": 10,
-      "Gros œuvre / Structure": 25,
-      "Couverture-Étanchéité": 7,
-      "Cloisons & doublages": 10,
-      "Menuiseries extérieures": 10,
-      "Plomberie": 6,
-      "Électricité": 7,
-      "CVC (chauffage-ventilation)": 12,
-      "Sols & revêtements": 6,
-      "Finitions": 7
-    },
-    "Tertiaire": {
-      "Terrassements & fondations": 9,
-      "Gros œuvre / Structure": 20,
-      "Couverture-Étanchéité": 6,
-      "Cloisons & doublages": 8,
-      "Menuiseries extérieures": 8,
-      "Plomberie": 6,
-      "Électricité": 12,
-      "CVC (chauffage-ventilation)": 18,
-      "Équipements techniques": 8,
-      "Finitions": 5
-    }
-  },
-  honoraires: {
-    "MOE Architecte": 0.10,
-    "BE Structure": 0.015,
-    "BE Fluides": 0.03,
-    "BE Environnement": 0.0075,
-    "AMO": 0.02,
-    "Bureau de contrôle": 0.01,
-    "Coordonnateur SPS": 0.008,
-    "MOA interne": 0.03
-  },
-  opex: {
-    energyEurPerM2: {
-      "Électrique radiateurs": 12,
-      "Chaudière gaz": 10,
-      "Plancher chauffant hydraulique": 11,
-      "PAC air/eau": 8,
-      "Géothermie": 7,
-      "Chaudière granulés": 9
-    },
-    ventilationEnergyAdj: {
-      "VMC simple flux": 0,
-      "VMC double flux": -1,
-      "Double flux thermodynamique": -1.5,
-      "CTA simple (tertiaire)": 2,
-      "CTA avec récupération": 1
-    },
-    maintenancePctOfWorks: 0.01,   // 1% du coût travaux / an
-    inflationEnergy: 0.02,         // 2%
-    inflationMaint: 0.02,          // 2%
-    discountRate: 0.03,            // 3%
-    horizonYears: 30
-  }
-};
-
-let REF = normalizeRef(loadRef() || deepClone(DEFAULT_REF));
-let STATE = normalizeState(loadState(), REF) || {
-  typologie: "Logement collectif",
-  surface: 1000,
-  indiceGeo: 1.00,
-  reglementation: "RE2020",
-  typeConstructif: "Trad béton",
-  contrainteSol: "Standard",
-  contrainteTerrain: "Plat",
-  chauffage: "PAC air/eau",
-  ventilation: "VMC double flux",
-  ajoutPerso: 0,
-  // opex params (will be pre-filled)
-  opexHorizon: REF.opex.horizonYears,
-  opexEnergyBase: REF.opex.energyEurPerM2["PAC air/eau"],
-  opexMaintPct: REF.opex.maintenancePctOfWorks * 100, // UI en %
-  inflationEnergy: REF.opex.inflationEnergy * 100,
-  inflationMaint: REF.opex.inflationMaint * 100,
-  discountRate: REF.opex.discountRate * 100,
-  lots: [], // filled by preset on load
-  honos: {} // filled from REF
-};
+let DEFAULT_REF = {};
+let REF;
+let STATE;
 
 // ======= Utilities =======
 const formatCurrency = (n) => (isFinite(n) ? n : 0).toLocaleString('fr-FR', {maximumFractionDigits:0});
@@ -817,7 +697,11 @@ dom.btnResetRef.addEventListener('click', ()=>{
 });
 
 // ======= App bootstrap =======
-function bootstrap(){
+async function bootstrap(){
+  const resp = await fetch('ref-data.json');
+  DEFAULT_REF = await resp.json();
+  REF = normalizeRef(loadRef() || deepClone(DEFAULT_REF));
+  STATE = normalizeState(loadState(), REF);
   initCoreInputs();
   ensureLotsInitialized();
   ensureHonosInitialized();
