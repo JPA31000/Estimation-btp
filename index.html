@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Estimateur de projet bâtiment</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="logo">🏗️</span>
+      <div>
+        <h1>Estimateur de projet bâtiment</h1>
+        <p class="subtitle">Coût travaux, ventilation par lots, honoraires, OPEX & coût global — tout modifiable et sauvegardable</p>
+      </div>
+    </div>
+    <div class="actions-row">
+      <button id="btn-calc" class="btn primary">Calculer</button>
+      <button id="btn-save" class="btn">Sauvegarder l’état</button>
+      <button id="btn-load" class="btn">Charger l’état</button>
+      <button id="btn-reset" class="btn danger">Réinitialiser tout</button>
+      <div class="export-group">
+        <button id="btn-export-json" class="btn">Exporter JSON</button>
+        <button id="btn-export-csv" class="btn">Exporter CSV</button>
+        <label for="import-json" class="btn">Importer JSON</label>
+        <input type="file" id="import-json" accept="application/json" hidden />
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Colonne Paramètres & Référentiel -->
+    <section class="col">
+      <div class="card">
+        <h2>Paramètres du projet</h2>
+        <div class="grid grid-2">
+          <label>Typologie
+            <select id="typologie" class="fld"></select>
+          </label>
+
+          <label>Surface (m²)
+            <input type="number" id="surface" class="fld" min="0" step="1" value="1000" />
+          </label>
+
+          <label>Indice géographique (×)
+            <input type="number" id="indiceGeo" class="fld" min="0.5" step="0.01" value="1.00" />
+          </label>
+
+          <label>Réglementation
+            <select id="reglementation" class="fld"></select>
+          </label>
+
+          <label>Type constructif
+            <select id="typeConstructif" class="fld"></select>
+          </label>
+
+          <label>Contrainte sol
+            <select id="contrainteSol" class="fld"></select>
+          </label>
+
+          <label>Contrainte terrain
+            <select id="contrainteTerrain" class="fld"></select>
+          </label>
+
+          <label>Chauffage
+            <select id="chauffage" class="fld"></select>
+          </label>
+
+          <label>Ventilation / Traitement d’air
+            <select id="ventilation" class="fld"></select>
+          </label>
+
+          <label>Ajout personnalisé (€/m²)
+            <input type="number" id="ajoutPerso" class="fld" step="1" value="0" />
+          </label>
+        </div>
+
+        <details class="mt">
+          <summary class="summary">⚙️ Paramètres d’exploitation (OPEX actualisés)</summary>
+          <div class="grid grid-3 mt-s">
+            <label>Horizon (années)
+              <input type="number" id="opexHorizon" class="fld" min="1" step="1" value="30" />
+            </label>
+            <label>Énergie (€/m²/an — base)
+              <input type="number" id="opexEnergyBase" class="fld" step="0.1" />
+            </label>
+            <label>Maintenance (% du coût travaux / an)
+              <input type="number" id="opexMaintPct" class="fld" step="0.001" />
+            </label>
+            <label>Inflation énergie (%/an)
+              <input type="number" id="inflationEnergy" class="fld" step="0.1" />
+            </label>
+            <label>Inflation maintenance (%/an)
+              <input type="number" id="inflationMaint" class="fld" step="0.1" />
+            </label>
+            <label>Taux d’actualisation (%/an)
+              <input type="number" id="discountRate" class="fld" step="0.1" />
+            </label>
+          </div>
+          <p class="hint mt-s">💡 Les valeurs ci-dessus se pré-remplissent selon le système de chauffage/ventilation, mais restent éditables.</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <details open>
+          <summary class="summary">📚 Référentiel (éditable)</summary>
+          <div id="ref-tabs" class="tabs mt-s">
+            <button data-tab="t-typologies" class="tab active">Bases €/m²</button>
+            <button data-tab="t-surcouts" class="tab">Surcoûts (%)</button>
+            <button data-tab="t-systems" class="tab">Systèmes (€/m²)</button>
+            <button data-tab="t-honos" class="tab">Honoraires (%)</button>
+            <button data-tab="t-presets" class="tab">Presets lots</button>
+          </div>
+
+          <div id="t-typologies" class="tab-pane active"></div>
+          <div id="t-surcouts" class="tab-pane"></div>
+          <div id="t-systems" class="tab-pane"></div>
+          <div id="t-honos" class="tab-pane"></div>
+          <div id="t-presets" class="tab-pane"></div>
+
+          <div class="actions-row mt">
+            <button id="btn-save-ref" class="btn">Sauvegarder le référentiel</button>
+            <button id="btn-reset-ref" class="btn">Réinitialiser le référentiel</button>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- Colonne Ventilation, Honoraires & Récap -->
+    <section class="col">
+      <div class="card">
+        <div class="row-between">
+          <h2>Ventilation par lots</h2>
+          <div>
+            <button id="btn-preset-lots" class="btn">Charger preset typologie</button>
+            <button id="btn-add-lot" class="btn">Ajouter un lot</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="lots-table">
+            <thead>
+              <tr><th>Lot</th><th>Ratio (%)</th><th>Montant (€)</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td class="right bold">Total ratios</td>
+                <td>
+                  <span id="lots-total" class="pill">0%</span>
+                </td>
+                <td class="right"><span id="lots-sum-amount">0</span> €</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="hint">Le total doit être de 100 %. L’indicateur passe au <span class="pill ok">vert</span> quand c’est bon.</p>
+      </div>
+
+      <div class="card">
+        <h2>Honoraires & études (sur coût travaux)</h2>
+        <div class="table-wrap">
+          <table id="honos-table">
+            <thead>
+              <tr><th>Intervenant</th><th>%</th><th>Montant (€)</th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td class="right bold">Total honoraires</td>
+                <td></td>
+                <td class="right"><span id="honos-total">0</span> €</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Récapitulatif</h2>
+        <div class="grid grid-3">
+          <div class="stat">
+            <div class="stat-label">Base €/m² ajustée</div>
+            <div class="stat-value"><span id="base-ajustee">0</span> € / m²</div>
+            <div class="stat-sub">= base × indice × (1 + surcoûts %) + additions €/m²</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Coût travaux</div>
+            <div class="stat-value"><span id="cout-travaux">0</span> €</div>
+            <div class="stat-sub"><span id="recap-details"></span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Honoraires</div>
+            <div class="stat-value"><span id="cout-honos">0</span> €</div>
+            <div class="stat-sub">Appliqués en % du coût travaux</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">OPEX actualisées</div>
+            <div class="stat-value"><span id="cout-opex">0</span> €</div>
+            <div class="stat-sub">Énergie + maintenance (VAN)</div>
+          </div>
+          <div class="stat highlight">
+            <div class="stat-label">Coût global (CAPEX + OPEX)</div>
+            <div class="stat-value"><span id="cout-global">0</span> €</div>
+            <div class="stat-sub"><span id="cout-global-m2">0</span> € / m²</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>💾 Sauvegarde locale (LocalStorage) — données non envoyées.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
