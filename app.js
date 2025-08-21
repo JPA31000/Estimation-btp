@@ -249,59 +249,7 @@ function loadState(){
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
 // ======= DOM binding =======
-const dom = {
-  typologie: document.getElementById('typologie'),
-  surface: document.getElementById('surface'),
-  indiceGeo: document.getElementById('indiceGeo'),
-  reglementation: document.getElementById('reglementation'),
-  typeConstructif: document.getElementById('typeConstructif'),
-  contrainteSol: document.getElementById('contrainteSol'),
-  contrainteTerrain: document.getElementById('contrainteTerrain'),
-  chauffage: document.getElementById('chauffage'),
-  ventilation: document.getElementById('ventilation'),
-  ajoutPerso: document.getElementById('ajoutPerso'),
-  // opex
-  opexHorizon: document.getElementById('opexHorizon'),
-  opexEnergyBase: document.getElementById('opexEnergyBase'),
-  opexMaintPct: document.getElementById('opexMaintPct'),
-  inflationEnergy: document.getElementById('inflationEnergy'),
-  inflationMaint: document.getElementById('inflationMaint'),
-  discountRate: document.getElementById('discountRate'),
-  // tables & outputs
-  lotsTableBody: document.querySelector('#lots-table tbody'),
-  lotsTotal: document.getElementById('lots-total'),
-  lotsSumAmount: document.getElementById('lots-sum-amount'),
-  honosTableBody: document.querySelector('#honos-table tbody'),
-  honosTotal: document.getElementById('honos-total'),
-  baseAjustee: document.getElementById('base-ajustee'),
-  coutTravaux: document.getElementById('cout-travaux'),
-  coutHonos: document.getElementById('cout-honos'),
-  coutOpex: document.getElementById('cout-opex'),
-  coutGlobal: document.getElementById('cout-global'),
-  coutGlobalM2: document.getElementById('cout-global-m2'),
-  recapDetails: document.getElementById('recap-details'),
-  // buttons
-  btnCalc: document.getElementById('btn-calc'),
-  btnSave: document.getElementById('btn-save'),
-  btnLoad: document.getElementById('btn-load'),
-  btnReset: document.getElementById('btn-reset'),
-  btnExportJSON: document.getElementById('btn-export-json'),
-  btnExportCSV: document.getElementById('btn-export-csv'),
-  importJSON: document.getElementById('import-json'),
-  btnPresetLots: document.getElementById('btn-preset-lots'),
-  btnAddLot: document.getElementById('btn-add-lot'),
-  // référentiel UI
-  refTabs: document.getElementById('ref-tabs'),
-  tabPanes: {
-    typologies: document.getElementById('t-typologies'),
-    surcouts: document.getElementById('t-surcouts'),
-    systems: document.getElementById('t-systems'),
-    honos: document.getElementById('t-honos'),
-    presets: document.getElementById('t-presets')
-  },
-  btnSaveRef: document.getElementById('btn-save-ref'),
-  btnResetRef: document.getElementById('btn-reset-ref')
-};
+let dom;
 
 function el(tag, attrs={}, ...children){
   const e = document.createElement(tag);
@@ -532,18 +480,18 @@ function attachCoreListeners(){
     dom.contrainteSol, dom.contrainteTerrain, dom.chauffage, dom.ventilation, dom.ajoutPerso,
     dom.opexHorizon, dom.opexEnergyBase, dom.opexMaintPct, dom.inflationEnergy, dom.inflationMaint, dom.discountRate
   ];
-  inputs.forEach(i => i.addEventListener('input', calcAndRender));
-  dom.btnCalc.addEventListener('click', calcAndRender);
+  inputs.forEach(i => i && i.addEventListener('input', calcAndRender));
+  if(dom.btnCalc) dom.btnCalc.addEventListener('click', calcAndRender);
 
-  dom.chauffage.addEventListener('change', ()=>{
+  if(dom.chauffage) dom.chauffage.addEventListener('change', ()=>{
     // suggest OPEX base according to system (placeholder already updates in calc)
     calcAndRender();
   });
-  dom.ventilation.addEventListener('change', ()=>{
+  if(dom.ventilation) dom.ventilation.addEventListener('change', ()=>{
     calcAndRender();
   });
 
-  dom.btnPresetLots.addEventListener('click', ()=>{
+  if(dom.btnPresetLots) dom.btnPresetLots.addEventListener('click', ()=>{
     const preset = REF.lotsPresets[STATE.typologie];
     if(preset){
       STATE.lots = Object.entries(preset).map(([name,ratio])=>({name, ratio:Number(ratio)}));
@@ -553,17 +501,17 @@ function attachCoreListeners(){
       alert("Aucun preset pour la typologie sélectionnée.");
     }
   });
-  dom.btnAddLot.addEventListener('click', ()=>{
+  if(dom.btnAddLot) dom.btnAddLot.addEventListener('click', ()=>{
     STATE.lots.push({name:"Nouveau lot", ratio:0});
     renderLotsTable();
     calcAndRender();
   });
 
-  dom.btnSave.addEventListener('click', ()=>{
+  if(dom.btnSave) dom.btnSave.addEventListener('click', ()=>{
     saveState();
     alert("État du projet sauvegardé dans le navigateur.");
   });
-  dom.btnLoad.addEventListener('click', ()=>{
+  if(dom.btnLoad) dom.btnLoad.addEventListener('click', ()=>{
     const s = loadState();
     if(!s){ alert("Aucun état sauvegardé trouvé."); return; }
     STATE = normalizeState(s, REF);
@@ -573,7 +521,7 @@ function attachCoreListeners(){
     renderLotsTable();
     calcAndRender();
   });
-  dom.btnReset.addEventListener('click', ()=>{
+  if(dom.btnReset) dom.btnReset.addEventListener('click', ()=>{
     if(confirm("Réinitialiser l’ensemble des données (projet + référentiel) ?")){
       localStorage.removeItem(STORAGE_KEYS.STATE);
       localStorage.removeItem(STORAGE_KEYS.REF);
@@ -607,36 +555,36 @@ function attachCoreListeners(){
     }
   });
 
-  dom.btnExportJSON.addEventListener('click', ()=>{
-    const payload = buildExportPayload();
-    downloadFile("estimation.json", JSON.stringify(payload, null, 2));
-  });
-  dom.btnExportCSV.addEventListener('click', ()=>{
-    const csv = buildCSV();
-    downloadFile("estimation.csv", csv);
-  });
-  dom.importJSON.addEventListener('change', (e)=>{
-    const f = e.target.files[0];
-    if(!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const data = JSON.parse(reader.result);
-        if(data.REF) REF = normalizeRef(data.REF);
-        if(data.STATE) STATE = normalizeState(data.STATE, REF);
-        initCoreInputs();
-        ensureLotsInitialized();
-        ensureHonosInitialized();
-        renderLotsTable();
-        calcAndRender();
-        renderRefPanes();
-        alert("Données importées.");
-      }catch(err){
-        alert("JSON invalide : " + err.message);
-      }
-    };
-    reader.readAsText(f);
-  });
+    if(dom.btnExportJSON) dom.btnExportJSON.addEventListener('click', ()=>{
+      const payload = buildExportPayload();
+      downloadFile("estimation.json", JSON.stringify(payload, null, 2));
+    });
+    if(dom.btnExportCSV) dom.btnExportCSV.addEventListener('click', ()=>{
+      const csv = buildCSV();
+      downloadFile("estimation.csv", csv);
+    });
+    if(dom.importJSON) dom.importJSON.addEventListener('change', (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const data = JSON.parse(reader.result);
+          if(data.REF) REF = normalizeRef(data.REF);
+          if(data.STATE) STATE = normalizeState(data.STATE, REF);
+          initCoreInputs();
+          ensureLotsInitialized();
+          ensureHonosInitialized();
+          renderLotsTable();
+          calcAndRender();
+          renderRefPanes();
+          alert("Données importées.");
+        }catch(err){
+          alert("JSON invalide : " + err.message);
+        }
+      };
+      reader.readAsText(f);
+    });
 }
 
 // ======= Export helpers =======
@@ -697,6 +645,7 @@ function downloadFile(filename, content){
 
 // ======= Référentiel UI =======
 function renderRefPanes(){
+  if(!dom || !dom.refTabs || !dom.tabPanes) return;
   // Tabs logic
   dom.refTabs.querySelectorAll('.tab').forEach(btn => {
     btn.onclick = () => {
@@ -794,31 +743,86 @@ function renderRefPanes(){
   }
 }
 
-dom.btnSaveRef.addEventListener('click', ()=>{
-  saveRef();
-  alert("Référentiel sauvegardé.");
-});
-dom.btnResetRef.addEventListener('click', ()=>{
-  if(confirm("Réinitialiser le référentiel aux valeurs par défaut ?")){
-    REF = deepClone(DEFAULT_REF);
-    saveRef();
-    renderRefPanes();
-    initCoreInputs();
-    ensureLotsInitialized();
-    ensureHonosInitialized();
-    renderLotsTable();
-    calcAndRender();
-  }
-});
-
 // ======= App bootstrap =======
 function bootstrap(){
+  dom = {
+    typologie: document.getElementById('typologie'),
+    surface: document.getElementById('surface'),
+    indiceGeo: document.getElementById('indiceGeo'),
+    reglementation: document.getElementById('reglementation'),
+    typeConstructif: document.getElementById('typeConstructif'),
+    contrainteSol: document.getElementById('contrainteSol'),
+    contrainteTerrain: document.getElementById('contrainteTerrain'),
+    chauffage: document.getElementById('chauffage'),
+    ventilation: document.getElementById('ventilation'),
+    ajoutPerso: document.getElementById('ajoutPerso'),
+    // opex
+    opexHorizon: document.getElementById('opexHorizon'),
+    opexEnergyBase: document.getElementById('opexEnergyBase'),
+    opexMaintPct: document.getElementById('opexMaintPct'),
+    inflationEnergy: document.getElementById('inflationEnergy'),
+    inflationMaint: document.getElementById('inflationMaint'),
+    discountRate: document.getElementById('discountRate'),
+    // tables & outputs
+    lotsTableBody: document.querySelector('#lots-table tbody'),
+    lotsTotal: document.getElementById('lots-total'),
+    lotsSumAmount: document.getElementById('lots-sum-amount'),
+    honosTableBody: document.querySelector('#honos-table tbody'),
+    honosTotal: document.getElementById('honos-total'),
+    baseAjustee: document.getElementById('base-ajustee'),
+    coutTravaux: document.getElementById('cout-travaux'),
+    coutHonos: document.getElementById('cout-honos'),
+    coutOpex: document.getElementById('cout-opex'),
+    coutGlobal: document.getElementById('cout-global'),
+    coutGlobalM2: document.getElementById('cout-global-m2'),
+    recapDetails: document.getElementById('recap-details'),
+    // buttons
+    btnCalc: document.getElementById('btn-calc'),
+    btnSave: document.getElementById('btn-save'),
+    btnLoad: document.getElementById('btn-load'),
+    btnReset: document.getElementById('btn-reset'),
+    btnExportJSON: document.getElementById('btn-export-json'),
+    btnExportCSV: document.getElementById('btn-export-csv'),
+    importJSON: document.getElementById('import-json'),
+    btnPresetLots: document.getElementById('btn-preset-lots'),
+    btnAddLot: document.getElementById('btn-add-lot'),
+    // référentiel UI
+    refTabs: document.getElementById('ref-tabs'),
+    tabPanes: {
+      typologies: document.getElementById('t-typologies'),
+      surcouts: document.getElementById('t-surcouts'),
+      systems: document.getElementById('t-systems'),
+      honos: document.getElementById('t-honos'),
+      presets: document.getElementById('t-presets')
+    },
+    btnSaveRef: document.getElementById('btn-save-ref'),
+    btnResetRef: document.getElementById('btn-reset-ref')
+  };
+
   initCoreInputs();
   ensureLotsInitialized();
   ensureHonosInitialized();
   renderLotsTable();
   renderRefPanes();
   attachCoreListeners();
+
+  if(dom.btnSaveRef) dom.btnSaveRef.addEventListener('click', ()=>{
+    saveRef();
+    alert("Référentiel sauvegardé.");
+  });
+  if(dom.btnResetRef) dom.btnResetRef.addEventListener('click', ()=>{
+    if(confirm("Réinitialiser le référentiel aux valeurs par défaut ?")){
+      REF = deepClone(DEFAULT_REF);
+      saveRef();
+      renderRefPanes();
+      initCoreInputs();
+      ensureLotsInitialized();
+      ensureHonosInitialized();
+      renderLotsTable();
+      calcAndRender();
+    }
+  });
+
   calcAndRender();
 }
 
