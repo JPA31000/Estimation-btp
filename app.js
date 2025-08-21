@@ -532,7 +532,10 @@ function attachCoreListeners(){
     dom.contrainteSol, dom.contrainteTerrain, dom.chauffage, dom.ventilation, dom.ajoutPerso,
     dom.opexHorizon, dom.opexEnergyBase, dom.opexMaintPct, dom.inflationEnergy, dom.inflationMaint, dom.discountRate
   ];
-  inputs.forEach(i => i.addEventListener('input', calcAndRender));
+  inputs.forEach(i => {
+    const eventName = i.tagName === 'SELECT' ? 'change' : 'input';
+    i.addEventListener(eventName, calcAndRender);
+  });
   dom.btnCalc.addEventListener('click', calcAndRender);
 
   dom.chauffage.addEventListener('change', ()=>{
